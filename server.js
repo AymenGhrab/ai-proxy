@@ -58,6 +58,6 @@ Your answer must ONLY be a valid JSON array of 3 product names. For example:
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ AI Proxy running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ AI Proxy running on http://0.0.0.0:${PORT}`);
 });
