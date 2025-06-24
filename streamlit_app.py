@@ -27,7 +27,7 @@ if st.button("🔍 Get Recommendations"):
         with st.spinner("Asking the AI..."):
            
             response = requests.post(
-                "http://localhost:3000/recommend",
+                "https://ai-proxy-dv8j.onrender.com/recommend",
                 json={
                     "targetProduct": target_product,
                     "allProducts": all_products
