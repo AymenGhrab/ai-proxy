@@ -5,7 +5,9 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const OPENROUTER_API_KEY = 'xai-wZe6We64EHnG6ZLj8RBw01kdj7RcXbUAUO7TAxNQdjOjmYF2RppsNAkndeKGZJ3lKvcHDy9p3clpND44'; 
+
+
+const OPENROUTER_API_KEY = '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';
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -16,21 +18,22 @@ app.post('/recommend', async (req, res) => {
 
     const prompt = `
 You are an AI assistant for an electronics store.
-Compare the following products and return 3 similar to the one below.
+Your job is to recommend 3 similar products based on a given target product.
 
-Target:
+Target product:
 ${targetProduct.name}: ${targetProduct.description}
 
-Products:
+Compare it to the following products:
 ${allProducts.map(p => `${p.name}: ${p.description}`).join('\n')}
 
-Return a JSON array of similar product names.
-    `;
+Your answer must ONLY be a valid JSON array of 3 product names. For example:
+["Gaming Laptop Z", "Gaming Monitor", "Office Laptop A"]
+`;
 
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'openai/gpt-3.5-turbo',
+        model: 'mistralai/mistral-7b-instruct:free',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
       },
@@ -43,15 +46,17 @@ Return a JSON array of similar product names.
     );
 
     const result = response.data.choices[0].message.content;
+
     const matchNames = JSON.parse(result);
     const matchedProducts = allProducts.filter(p => matchNames.includes(p.name));
+
     res.json(matchedProducts);
   } catch (err) {
-    console.error(err.message);
+    console.error('AI Error:', err.message);
     res.status(500).send('AI request failed');
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`AI Proxy running on http://localhost:${PORT}`);
+  console.log(`✅ AI Proxy running on http://localhost:${PORT}`);
 });
