@@ -7,7 +7,6 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 app.use(cors());
@@ -17,6 +16,16 @@ app.post('/recommend', async (req, res) => {
   try {
     const { targetProduct, allProducts } = req.body;
 
+    if (!targetProduct || !targetProduct.name || !targetProduct.description) {
+      return res.status(400).send('Invalid target product');
+    }
+
+    // Filter and sanitize products for prompt
+    const safeProducts = allProducts
+      .filter(p => p.name && p.description) // Ignore if name or description is missing
+      .map(p => `${p.name}: ${p.description}`)
+      .join('\n');
+
     const prompt = `
 You are an AI assistant for an electronics store.
 Your job is to recommend 3 similar products based on a given target product.
@@ -25,7 +34,7 @@ Target product:
 ${targetProduct.name}: ${targetProduct.description}
 
 Compare it to the following products:
-${allProducts.map(p => `${p.name}: ${p.description}`).join('\n')}
+${safeProducts}
 
 Your answer must ONLY be a valid JSON array of 3 product names. For example:
 ["Gaming Laptop Z", "Gaming Monitor", "Office Laptop A"]
@@ -47,6 +56,7 @@ Your answer must ONLY be a valid JSON array of 3 product names. For example:
     );
 
     const result = response.data.choices[0].message.content;
+    console.log('AI raw result:', result);
 
     const matchNames = JSON.parse(result);
     const matchedProducts = allProducts.filter(p => matchNames.includes(p.name));
