@@ -20,9 +20,15 @@ app.post('/recommend', async (req, res) => {
       return res.status(400).send('Invalid target product');
     }
 
-    // Filter and sanitize products for prompt
-    const safeProducts = allProducts
-      .filter(p => p.name && p.description) // Ignore if name or description is missing
+    // Sanitize target product (ignore imageUrl or any other field)
+    const cleanTarget = {
+      name: targetProduct.name,
+      description: targetProduct.description
+    };
+
+    // Sanitize all products: ignore imageUrl or any undefined values
+    const cleanProducts = allProducts
+      .filter(p => p.name && p.description) // Filter only valid entries
       .map(p => `${p.name}: ${p.description}`)
       .join('\n');
 
@@ -31,10 +37,10 @@ You are an AI assistant for an electronics store.
 Your job is to recommend 3 similar products based on a given target product.
 
 Target product:
-${targetProduct.name}: ${targetProduct.description}
+${cleanTarget.name}: ${cleanTarget.description}
 
 Compare it to the following products:
-${safeProducts}
+${cleanProducts}
 
 Your answer must ONLY be a valid JSON array of 3 product names. For example:
 ["Gaming Laptop Z", "Gaming Monitor", "Office Laptop A"]
@@ -56,14 +62,14 @@ Your answer must ONLY be a valid JSON array of 3 product names. For example:
     );
 
     const result = response.data.choices[0].message.content;
-    console.log('AI raw result:', result);
+    console.log('🧠 AI raw result:', result);
 
     const matchNames = JSON.parse(result);
     const matchedProducts = allProducts.filter(p => matchNames.includes(p.name));
 
     res.json(matchedProducts);
   } catch (err) {
-    console.error('AI Error:', err.message);
+    console.error('🔥 AI Error:', err.message);
     res.status(500).send('AI request failed');
   }
 });
