@@ -15,17 +15,17 @@ all_products = [
 st.set_page_config(page_title="AI Product Recommender", layout="centered")
 st.title("🎯 AI Product Recommender")
 
-# Dropdown to choose the target product
+
 product_names = [product["name"] for product in all_products]
 selected_name = st.selectbox("Select a product", product_names)
 
-# Match selected product object
+
 target_product = next(p for p in all_products if p["name"] == selected_name)
 
 if st.button("🔍 Get Recommendations"):
     try:
         with st.spinner("Asking the AI..."):
-            # Call your proxy API
+           
             response = requests.post(
                 "http://localhost:3000/recommend",
                 json={
