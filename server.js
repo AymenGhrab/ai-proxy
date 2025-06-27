@@ -6,7 +6,7 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -25,13 +25,13 @@ app.post('/recommend', async (req, res) => {
       .join('\n');
 
     const prompt = `
-You are a recommendation engine for an electronics store.
-ONLY return a JSON array of exactly 3 product names most similar to the target product.
+You are a smart product recommendation AI.
+Based on the target product below, return ONLY a JSON array of 3 similar product names (no explanation).
 
-Target:
+Target Product:
 ${targetProduct.name}: ${targetProduct.description}
 
-List:
+Compare to the following products:
 ${cleanProducts}
 
 Format:
@@ -39,36 +39,33 @@ Format:
 `.trim();
 
     const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
-        model: 'mistralai/mistral-7b-instruct:free',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
+        contents: [{ parts: [{ text: prompt }] }]
       },
       {
         headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       }
     );
 
-    const raw = response.data.choices?.[0]?.message?.content?.trim();
-    console.log('🧠 OpenRouter Response:', raw);
+    const raw = response.data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    console.log('🧠 Gemini Raw Response:', raw);
 
     const jsonStart = raw.indexOf('[');
     const jsonEnd = raw.lastIndexOf(']') + 1;
     const safeJson = raw.substring(jsonStart, jsonEnd);
     const names = JSON.parse(safeJson);
 
-    const matched = allProducts.filter(p => names.includes(p.name));
-    res.json(matched);
+    const matchedProducts = allProducts.filter(p => names.includes(p.name));
+    res.json(matchedProducts);
   } catch (err) {
-    console.error('🔥 OpenRouter Error:', err.response?.data || err.message);
-    res.status(500).send('OpenRouter request failed');
+    console.error('🔥 Gemini Error:', err.response?.data || err.message);
+    res.status(500).send('Gemini request failed');
   }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ OpenRouter AI Proxy running on http://0.0.0.0:${PORT}`);
+  console.log(`✅ Gemini AI Proxy running on http://0.0.0.0:${PORT}`);
 });
