@@ -15,34 +15,41 @@ app.post('/recommend', async (req, res) => {
   try {
     const { targetProduct, allProducts } = req.body;
 
-    // Validate input
+    // ✅ Validate input
     if (!targetProduct?.name || !targetProduct?.description) {
       return res.status(400).send('Invalid target product');
     }
 
-    // Prepare sanitized product list (ignore imageUrl and undefined)
-    const cleanProducts = allProducts
+    // ✅ Sanitize target fields
+    const safeTargetName = targetProduct.name.replace(/[\n\r]/g, ' ');
+    const safeTargetDescription = targetProduct.description.replace(/[\n\r]/g, ' ');
+
+    // ✅ Prepare prompt with only name + description (skip imageUrl etc.)
+    const cleanProductsText = allProducts
       .filter(p => p.name && p.description)
-      .map(p => `${p.name}: ${p.description}`)
+      .map(p => {
+        const safeName = p.name.replace(/[\n\r]/g, ' ');
+        const safeDesc = p.description.replace(/[\n\r]/g, ' ');
+        return `${safeName}: ${safeDesc}`;
+      })
       .join('\n');
 
-    // Build prompt
     const prompt = `
 You are an AI assistant for an electronics store.
 Your job is to recommend 3 similar products based on a given target product.
 
 Target product:
-${targetProduct.name}: ${targetProduct.description}
+${safeTargetName}: ${safeTargetDescription}
 
 Compare it to the following products:
-${cleanProducts}
+${cleanProductsText}
 
 ONLY return a valid JSON array of 3 product names. Do NOT explain.
 For example:
 ["Gaming Laptop Z", "Gaming Monitor", "Office Laptop A"]
 `.trim();
 
-    // Call OpenRouter AI API
+    // ✅ Call OpenRouter API
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -58,10 +65,10 @@ For example:
       }
     );
 
-    // Extract and parse response safely
     const raw = response.data.choices?.[0]?.message?.content?.trim();
     console.log('🧠 AI Raw Response:', raw);
 
+    // ✅ Safely extract JSON
     let names = [];
     try {
       const jsonStart = raw.indexOf('[');
@@ -73,7 +80,7 @@ For example:
       return res.status(500).send('Invalid AI response format');
     }
 
-    // Filter matching products
+    // ✅ Match products (keeping full product objects incl. imageUrl)
     const matchedProducts = allProducts.filter(p => names.includes(p.name));
     console.log('✅ Matched Products:', matchedProducts);
 
