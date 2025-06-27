@@ -15,15 +15,18 @@ app.post('/recommend', async (req, res) => {
   try {
     const { targetProduct, allProducts } = req.body;
 
+    // Validate input
     if (!targetProduct?.name || !targetProduct?.description) {
       return res.status(400).send('Invalid target product');
     }
 
+    // Prepare sanitized product list (ignore imageUrl and undefined)
     const cleanProducts = allProducts
       .filter(p => p.name && p.description)
       .map(p => `${p.name}: ${p.description}`)
       .join('\n');
 
+    // Build prompt
     const prompt = `
 You are an AI assistant for an electronics store.
 Your job is to recommend 3 similar products based on a given target product.
@@ -31,14 +34,15 @@ Your job is to recommend 3 similar products based on a given target product.
 Target product:
 ${targetProduct.name}: ${targetProduct.description}
 
-Product list to compare with:
+Compare it to the following products:
 ${cleanProducts}
 
-ONLY return a valid JSON array of 3 product names. No explanation.
-Format example:
+ONLY return a valid JSON array of 3 product names. Do NOT explain.
+For example:
 ["Gaming Laptop Z", "Gaming Monitor", "Office Laptop A"]
-`;
+`.trim();
 
+    // Call OpenRouter AI API
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -54,18 +58,25 @@ Format example:
       }
     );
 
+    // Extract and parse response safely
     const raw = response.data.choices?.[0]?.message?.content?.trim();
     console.log('🧠 AI Raw Response:', raw);
 
-    // Try to safely extract JSON array
-    const jsonStart = raw.indexOf('[');
-    const jsonEnd = raw.lastIndexOf(']') + 1;
-    const safeJson = raw.substring(jsonStart, jsonEnd);
+    let names = [];
+    try {
+      const jsonStart = raw.indexOf('[');
+      const jsonEnd = raw.lastIndexOf(']') + 1;
+      const safeJson = raw.substring(jsonStart, jsonEnd);
+      names = JSON.parse(safeJson);
+    } catch (parseError) {
+      console.error('❌ Failed to parse AI response:', parseError.message);
+      return res.status(500).send('Invalid AI response format');
+    }
 
-    const names = JSON.parse(safeJson);
+    // Filter matching products
     const matchedProducts = allProducts.filter(p => names.includes(p.name));
-
     console.log('✅ Matched Products:', matchedProducts);
+
     res.json(matchedProducts);
   } catch (err) {
     console.error('🔥 AI Server Error:', err.message);
